@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Take Issue - Eco Revive</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="nav-logo">Eco Revive</a>
+            <div class="nav-links">
+                <a href="/" class="nav-link">Home</a>
+                <a href="/raise_issues" class="nav-link">Raise Issue</a>
+                <a href="/take_issues" class="nav-link active">Take Issue</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Content -->
+    <div class="container">
+        <h2>Available Issues – Help the Planet!</h2>
+
+        <div id="list">
+            {% for issue in issues %}
+            <div class="card">
+
+                <h3>{{ issue.title }}</h3>
+                <p>{{ issue.description }}</p>
+
+                <p>
+                    <strong>Target:</strong> ₹{{ issue.target_amount }} |
+                    <strong>Raised:</strong> ₹{{ issue.collected_amount }}
+                </p>
+
+                <div class="progress">
+                    <div
+                        class="progress-fill"
+                        style="width: {{ ((issue.collected_amount|int) / (issue.target_amount|int or 1) * 100)|round(1) }}%;">
+                    </div>
+                </div>
+
+                <p>
+                    <strong>Status:</strong>
+                    <span class="status-{{ issue.status }}">
+                        {{ issue.status.replace('_', ' ')|title }}
+                    </span>
+                </p>
+
+                {% if issue.status == "open" %}
+                    <button class="btn take-btn" onclick="takeIssue({{ issue.id }})">
+                        Take This Issue
+                    </button>
+
+                {% elif issue.status == "in_progress" and issue.taken_by %}
+                    <p><strong>In Progress by:</strong> {{ issue.taken_by }}</p>
+                    <button class="btn complete-btn" onclick="completeIssue({{ issue.id }})">
+                        Mark Completed
+                    </button>
+                {% endif %}
+
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Take Issue Modal -->
+    <div id="takeModal" class="modal hidden">
+        <div class="modal-box">
+            <h3>Take This Issue</h3>
+            <p>Enter your name to proceed</p>
+
+            <input type="text" id="workerName" placeholder="Your name">
+
+            <div class="modal-actions">
+                <button class="btn complete-btn" onclick="closeTakeModal()">Cancel</button>
+                <button class="btn take-btn" onclick="confirmTakeIssue()">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Complete Issue Modal -->
+    <div id="completeModal" class="modal hidden">
+        <div class="modal-box">
+            <h3>Mark as Completed?</h3>
+            <p>This action cannot be undone.</p>
+
+            <div class="modal-actions">
+                <button class="btn take-btn" onclick="closeCompleteModal()">Cancel</button>
+                <button class="btn complete-btn" onclick="confirmCompleteIssue()">Yes, Complete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="successModal" class="modal hidden">
+        <div class="modal-box">
+            <h3 id="successTitle"></h3>
+            <p id="successMessage"></p>
+            <div class="modal-actions">
+                <button class="btn take-btn" onclick="closeSuccessModal()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
+

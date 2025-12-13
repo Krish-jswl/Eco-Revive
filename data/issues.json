@@ -1,0 +1,20 @@
+[
+    {
+        "id": 1,
+        "title": "Clean Park",
+        "description": "Clean the park",
+        "target_amount": 1000,
+        "collected_amount": 0,
+        "status": "open",
+        "taken_by": null
+    },
+    {
+        "id": 2,
+        "title": "add lamp",
+        "description": "add laps in park",
+        "target_amount": 2000,
+        "collected_amount": 500,
+        "status": "completed",
+        "taken_by": "Krish"
+    }
+]
