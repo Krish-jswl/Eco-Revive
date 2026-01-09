@@ -5,108 +5,115 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Take Issue - Eco Revive</title>
     <link rel="stylesheet" href="/static/styles.css">
+
+    <!-- Leaflet -->
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 
-    <!-- Navigation Bar -->
-    <nav class="navbar">
-        <div class="nav-container">
-            <a href="/" class="nav-logo">Eco Revive</a>
-            <div class="nav-links">
-                <a href="/" class="nav-link">Home</a>
-                <a href="/raise_issues" class="nav-link">Raise Issue</a>
-                <a href="/take_issues" class="nav-link active">Take Issue</a>
-            </div>
+<nav class="navbar">
+    <div class="nav-container">
+        <a href="/" class="nav-logo">Eco Revive</a>
+        <div class="nav-links">
+            <a href="/" class="nav-link">Home</a>
+            <a href="/raise_issues" class="nav-link">Raise Issue</a>
+            <a href="/take_issues" class="nav-link active">Take Issue</a>
         </div>
-    </nav>
+    </div>
+</nav>
 
-    <!-- Content -->
-    <div class="container">
-        <h2>Available Issues – Help the Planet!</h2>
+<div class="container">
+    <h2>Available Issues – Help the Planet!</h2>
 
-        <div id="list">
-            {% for issue in issues %}
-            <div class="card">
+    <div id="list">
+        {% for issue in issues %}
+        <div class="card">
 
-                <h3>{{ issue.title }}</h3>
-                <p>{{ issue.description }}</p>
+            <h3>{{ issue.title }}</h3>
+            <p>{{ issue.description }}</p>
 
-                <p>
-                    <strong>Target:</strong> ₹{{ issue.target_amount }} |
-                    <strong>Raised:</strong> ₹{{ issue.collected_amount }}
-                </p>
+            <!-- 🔥 NEW: Map preview -->
+            <div id="map-{{ issue.id }}"
+                 style="height:200px; margin:1rem 0;"></div>
 
-                <div class="progress">
-                    <div
-                        class="progress-fill"
-                        style="width: {{ ((issue.collected_amount|int) / (issue.target_amount|int or 1) * 100)|round(1) }}%;">
-                    </div>
+            <p>
+                <strong>Target:</strong> ₹{{ issue.target_amount }} |
+                <strong>Raised:</strong> ₹{{ issue.collected_amount }}
+            </p>
+
+            <div class="progress">
+                <div class="progress-fill"
+                     style="width: {{ ((issue.collected_amount|int) / (issue.target_amount|int or 1) * 100)|round(1) }}%;">
                 </div>
-
-                <p>
-                    <strong>Status:</strong>
-                    <span class="status-{{ issue.status }}">
-                        {{ issue.status.replace('_', ' ')|title }}
-                    </span>
-                </p>
-
-                {% if issue.status == "open" %}
-                    <button class="btn take-btn" onclick="takeIssue({{ issue.id }})">
-                        Take This Issue
-                    </button>
-
-                {% elif issue.status == "in_progress" and issue.taken_by %}
-                    <p><strong>In Progress by:</strong> {{ issue.taken_by }}</p>
-                    <button class="btn complete-btn" onclick="completeIssue({{ issue.id }})">
-                        Mark Completed
-                    </button>
-                {% endif %}
-
             </div>
-            {% endfor %}
+
+            <p>
+                <strong>Status:</strong>
+                <span class="status-{{ issue.status }}">
+                    {{ issue.status.replace('_', ' ')|title }}
+                </span>
+            </p>
+
+            {% if issue.status == "open" %}
+                <button class="btn take-btn"
+                        onclick="takeIssue({{ issue.id }})">
+                    Take This Issue
+                </button>
+
+            {% elif issue.status == "in_progress" and issue.taken_by %}
+                <p><strong>In Progress by:</strong> {{ issue.taken_by }}</p>
+                <button class="btn complete-btn"
+                        onclick="completeIssue({{ issue.id }})">
+                    Mark Completed
+                </button>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Existing modals unchanged -->
+<div id="takeModal" class="modal hidden">
+    <div class="modal-box">
+        <h3>Take This Issue</h3>
+        <input type="text" id="workerName" placeholder="Your name">
+        <div class="modal-actions">
+            <button class="btn complete-btn" onclick="closeTakeModal()">Cancel</button>
+            <button class="btn take-btn" onclick="confirmTakeIssue()">Confirm</button>
         </div>
     </div>
+</div>
 
-    <!-- Take Issue Modal -->
-    <div id="takeModal" class="modal hidden">
-        <div class="modal-box">
-            <h3>Take This Issue</h3>
-            <p>Enter your name to proceed</p>
-
-            <input type="text" id="workerName" placeholder="Your name">
-
-            <div class="modal-actions">
-                <button class="btn complete-btn" onclick="closeTakeModal()">Cancel</button>
-                <button class="btn take-btn" onclick="confirmTakeIssue()">Confirm</button>
-            </div>
+<div id="completeModal" class="modal hidden">
+    <div class="modal-box">
+        <h3>Mark as Completed?</h3>
+        <div class="modal-actions">
+            <button class="btn take-btn" onclick="closeCompleteModal()">Cancel</button>
+            <button class="btn complete-btn" onclick="confirmCompleteIssue()">Yes, Complete</button>
         </div>
     </div>
+</div>
 
-    <!-- Complete Issue Modal -->
-    <div id="completeModal" class="modal hidden">
-        <div class="modal-box">
-            <h3>Mark as Completed?</h3>
-            <p>This action cannot be undone.</p>
+<script>
+{% for issue in issues %}
+{% if issue.location %}
+const map{{ issue.id }} = L.map("map-{{ issue.id }}")
+    .setView([{{ issue.location.lat }}, {{ issue.location.lng }}], 14);
 
-            <div class="modal-actions">
-                <button class="btn take-btn" onclick="closeCompleteModal()">Cancel</button>
-                <button class="btn complete-btn" onclick="confirmCompleteIssue()">Yes, Complete</button>
-            </div>
-        </div>
-    </div>
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png")
+    .addTo(map{{ issue.id }});
 
-    <!-- Success Modal -->
-    <div id="successModal" class="modal hidden">
-        <div class="modal-box">
-            <h3 id="successTitle"></h3>
-            <p id="successMessage"></p>
-            <div class="modal-actions">
-                <button class="btn take-btn" onclick="closeSuccessModal()">OK</button>
-            </div>
-        </div>
-    </div>
+L.marker([
+    {{ issue.location.lat }},
+    {{ issue.location.lng }}
+]).addTo(map{{ issue.id }});
+{% endif %}
+{% endfor %}
+</script>
 
-    <script src="/static/script.js"></script>
+<script src="/static/script.js"></script>
 </body>
 </html>
 

@@ -1,17 +1,94 @@
 /* ===============================
-   ISSUE CREATION
+   MAP + LOCATION (RAISE ISSUE)
+================================ */
+
+let selectedLat = null;
+let selectedLng = null;
+let map = null;
+let marker = null;
+
+const mapDiv = document.getElementById("map");
+
+if (mapDiv) {
+    map = L.map("map").setView([20.5937, 78.9629], 5);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap"
+    }).addTo(map);
+
+    map.on("click", (e) => {
+        setMarker(e.latlng.lat, e.latlng.lng);
+    });
+}
+
+function setMarker(lat, lng) {
+    selectedLat = lat;
+    selectedLng = lng;
+
+    if (marker) {
+        marker.setLatLng([lat, lng]);
+    } else {
+        marker = L.marker([lat, lng]).addTo(map);
+    }
+
+    map.setView([lat, lng], 15);
+}
+
+
+/* ===============================
+   CURRENT LOCATION BUTTON
+================================ */
+
+const locateBtn = document.getElementById("locateBtn");
+
+if (locateBtn) {
+    locateBtn.onclick = () => {
+        if (!navigator.geolocation) {
+            alert("Geolocation not supported");
+            return;
+        }
+
+        locateBtn.innerText = "Locating…";
+
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                setMarker(
+                    pos.coords.latitude,
+                    pos.coords.longitude
+                );
+                locateBtn.innerText = "📍 Location Selected";
+            },
+            () => {
+                alert("Permission denied or error");
+                locateBtn.innerText = "📍 Use My Current Location";
+            },
+            { enableHighAccuracy: true }
+        );
+    };
+}
+
+
+/* ===============================
+   FORM SUBMIT (RAISE ISSUE)
 ================================ */
 
 const form = document.getElementById("issueForm");
 
 if (form) {
-    form.addEventListener("submit", async (e) => {
+    form.onsubmit = async (e) => {
         e.preventDefault();
 
+        if (selectedLat === null || selectedLng === null) {
+            alert("Select a location on the map");
+            return;
+        }
+
         const body = {
-            title: document.getElementById("title").value.trim(),
-            description: document.getElementById("description").value.trim(),
-            target_amount: parseInt(document.getElementById("amount").value)
+            title: title.value.trim(),
+            description: description.value.trim(),
+            target_amount: parseInt(amount.value),
+            lat: selectedLat,
+            lng: selectedLng
         };
 
         const res = await fetch("/api/issues", {
@@ -20,38 +97,71 @@ if (form) {
             body: JSON.stringify(body)
         });
 
-        if (!res.ok) return;
+        if (!res.ok) {
+            alert("Error creating issue");
+            return;
+        }
 
         showSuccess(
             "Issue Created 🌱",
             "Your community issue was added successfully."
         );
-    });
+    };
 }
 
 
 /* ===============================
-   TAKE ISSUE
+   CONTRIBUTE MODAL
+================================ */
+
+let contributeIssueId = null;
+
+function openContribute(id) {
+    contributeIssueId = id;
+    document.getElementById("contributeModal").classList.remove("hidden");
+}
+
+function closeContribute() {
+    document.getElementById("contributeModal").classList.add("hidden");
+}
+
+async function confirmContribute() {
+    const amount = parseInt(
+        document.getElementById("contributeAmount").value
+    );
+
+    if (!amount || amount <= 0) return;
+
+    const res = await fetch(`/api/issues/${contributeIssueId}/contribute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount })
+    });
+
+    if (!res.ok) return;
+
+    closeContribute();
+
+    showSuccess(
+        "Contribution Successful 💚",
+        `₹${amount} was added to this issue (demo)`
+    );
+}
+
+
+/* ===============================
+   TAKE ISSUE MODAL (🔥 FIXED)
 ================================ */
 
 let currentIssueId = null;
-let contributeIssueId = null;
 
 function takeIssue(id) {
     currentIssueId = id;
-
-    const modal = document.getElementById("takeModal");
-    const input = document.getElementById("workerName");
-
-    if (!modal || !input) return;
-
-    input.value = "";
-    modal.classList.remove("hidden");
-    input.focus();
+    document.getElementById("takeModal").classList.remove("hidden");
 }
 
 function closeTakeModal() {
-    document.getElementById("takeModal")?.classList.add("hidden");
+    document.getElementById("takeModal").classList.add("hidden");
 }
 
 async function confirmTakeIssue() {
@@ -68,24 +178,22 @@ async function confirmTakeIssue() {
 
     closeTakeModal();
 
-    showSuccess(
-        "Issue Taken 🤝",
-        "Thank you for stepping up to help!"
-    );
+    // 🔥 REQUIRED: re-render server-side UI
+    location.reload();
 }
 
 
 /* ===============================
-   COMPLETE ISSUE
+   COMPLETE ISSUE (🔥 FIXED)
 ================================ */
 
 function completeIssue(id) {
     currentIssueId = id;
-    document.getElementById("completeModal")?.classList.remove("hidden");
+    document.getElementById("completeModal").classList.remove("hidden");
 }
 
 function closeCompleteModal() {
-    document.getElementById("completeModal")?.classList.add("hidden");
+    document.getElementById("completeModal").classList.add("hidden");
 }
 
 async function confirmCompleteIssue() {
@@ -97,74 +205,23 @@ async function confirmCompleteIssue() {
 
     closeCompleteModal();
 
-    showSuccess(
-        "Issue Completed ✅",
-        "Great work! You made real impact today."
-    );
+    // 🔥 REQUIRED: re-render server-side UI
+    location.reload();
 }
 
 
 /* ===============================
-   CONTRIBUTE (OPTIONAL / DEMO)
-================================ */
-
-function openContribute(id) {
-    contributeIssueId = id;
-
-    const modal = document.getElementById("contributeModal");
-    const input = document.getElementById("contributeAmount");
-
-    if (!modal || !input) return;
-
-    input.value = "";
-    modal.classList.remove("hidden");
-    input.focus();
-}
-
-function closeContribute() {
-    document.getElementById("contributeModal")?.classList.add("hidden");
-}
-
-async function confirmContribute() {
-    const amount = parseInt(
-        document.getElementById("contributeAmount").value
-    );
-
-    if (!amount || amount <= 0) return;
-
-    await fetch(`/api/issues/${contributeIssueId}/contribute`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount })
-    });
-
-    closeContribute();
-
-    showSuccess(
-        "Contribution Successful 💚",
-        `₹${amount} was added to this issue (demo)`
-    );
-}
-
-
-/* ===============================
-   SUCCESS MODAL (GLOBAL)
+   SUCCESS MODAL (RELOAD POINT)
 ================================ */
 
 function showSuccess(title, message) {
-    const titleEl = document.getElementById("successTitle");
-    const msgEl = document.getElementById("successMessage");
-    const modal = document.getElementById("successModal");
-
-    if (!titleEl || !msgEl || !modal) return;
-
-    titleEl.innerText = title;
-    msgEl.innerText = message;
-    modal.classList.remove("hidden");
+    document.getElementById("successTitle").innerText = title;
+    document.getElementById("successMessage").innerText = message;
+    document.getElementById("successModal").classList.remove("hidden");
 }
 
 function closeSuccessModal() {
-    document.getElementById("successModal")?.classList.add("hidden");
+    document.getElementById("successModal").classList.add("hidden");
     location.reload();
 }
 
@@ -176,9 +233,9 @@ function closeSuccessModal() {
 document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
 
+    closeContribute();
     closeTakeModal();
     closeCompleteModal();
-    closeContribute();
     document.getElementById("successModal")?.classList.add("hidden");
 });
 
